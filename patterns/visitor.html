@@ -1,0 +1,211 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+        <!-- MathJax -->
+        <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = localStorage.getItem('theme');
+            if (theme == null) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = localStorage.getItem('sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li><a href="./intro.html"><strong>1.</strong> Introduction</a></li><li><a href="./idioms/README.html"><strong>2.</strong> Idioms</a></li><li><ul class="section"><li><a href="./idioms/ctor.html"><strong>2.1.</strong> Constructor</a></li><li><a href="./idioms/concat-format.html"><strong>2.2.</strong> Concatenating Strings with <code>format!</code></a></li><li><a href="./idioms/priv-extend.html"><strong>2.3.</strong> Privacy For Extensibility</a></li><li><a href="./idioms/deref.html"><strong>2.4.</strong> Collections Are Smart Pointers</a></li><li><a href="./idioms/dtor-finally.html"><strong>2.5.</strong> Finalisation in Sestructors</a></li><li><a href="./idioms/option-iter.html"><strong>2.6.</strong> Iterating over an <code>Option</code></a></li><li><a href="./idioms/pass-var-to-closure.html"><strong>2.7.</strong> Pass Variables to Closure</a></li><li><a href="./idioms/mem-replace.html"><strong>2.8.</strong> <code>mem::replace(_)</code></a></li></ul></li><li><a href="./patterns/README.html"><strong>3.</strong> Design Patterns</a></li><li><ul class="section"><li><a href="./patterns/builder.html"><strong>3.1.</strong> Builder</a></li><li><a href="./patterns/RAII.html"><strong>3.2.</strong> RAII Guards</a></li><li><a href="./patterns/newtype.html"><strong>3.3.</strong> Newtype</a></li><li><a href="./patterns/entry.html"><strong>3.4.</strong> Entry API</a></li><li><a href="./patterns/visitor.html" class="active"><strong>3.5.</strong> Visitor</a></li><li><a href="./patterns/fold.html"><strong>3.6.</strong> Fold</a></li><li><a href="./patterns/small-crates.html"><strong>3.7.</strong> Prefer Small Crates</a></li><li><a href="./patterns/late-bounds.html"><strong>3.8.</strong> Late Bound Bounds</a></li><li><a href="./patterns/compose-structs.html"><strong>3.9.</strong> Compose Structs</a></li></ul></li><li><a href="./anti_patterns/README.html"><strong>4.</strong> Anti-patterns</a></li><li><ul class="section"><li><a href="./anti_patterns/deref.html"><strong>4.1.</strong> Deref Polymorphism</a></li><li><a href="./anti_patterns/deny-warnings.html"><strong>4.2.</strong> <code>#[deny(warnings)]</code></a></li></ul></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush"></i>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <h1>Visitor</h1>
+<h2>Description</h2>
+<p>A visitor encapsulates an algorithm that operates over a heterogeneous
+collection of objects. It allows multiple different algorithms to be written
+over the same data without having to modify the data (or their primary
+behaviour).</p>
+<p>Furthermore, the visitor pattern allows separating the traversal of
+a collection of objects from the operations performed on each object.</p>
+<h2>Example</h2>
+<pre><code class="language-rust">// The data we will visit
+mod ast {
+    pub enum Stmt {
+        Expr(Expr),
+        Let(Name, Expr),
+    }
+
+    pub struct Name {
+        value: String,
+    }
+
+    pub enum Expr {
+        IntLit(i64),
+        Add(Box&lt;Expr&gt;, Box&lt;Expr&gt;),
+        Sub(Box&lt;Expr&gt;, Box&lt;Expr&gt;),
+    }
+}
+
+// The abstract visitor
+mod visit {
+    use ast::*;
+
+    pub trait Visitor&lt;T&gt; {
+        fn visit_name(&amp;mut self, n: &amp;Name) -&gt; T;
+        fn visit_stmt(&amp;mut self, s: &amp;Stmt) -&gt; T;
+        fn visit_expr(&amp;mut self, e: &amp;Expr) -&gt; T;
+    }
+}
+
+use visit::*;
+use ast::*;
+
+// An example concrete implementation - walks the AST interpreting it as code.
+struct Interpreter;
+impl Visitor&lt;i64&gt; for Interpreter {
+    fn visit_name(&amp;mut self, n: &amp;Name) -&gt; i64 { panic!() }
+    fn visit_stmt(&amp;mut self, s: &amp;Stmt) -&gt; i64 {
+        match *s {
+            Stmt::Expr(ref e) =&gt; self.visit_expr(e),
+            Stmt::Let(..) =&gt; unimplemented!(),
+        }
+    }
+
+    fn visit_expr(&amp;mut self, e: &amp;Expr) -&gt; i64 {
+        match *e {
+            Expr::IntLit(n) =&gt; n,
+            Expr::Add(ref lhs, ref rhs) =&gt; self.visit_expr(lhs) + self.visit_expr(rhs),
+            Expr::Sub(ref lhs, ref rhs) =&gt; self.visit_expr(lhs) - self.visit_expr(rhs),
+        }
+    }
+}
+</code></pre>
+<p>One could implement further visitors, for example a type checker, without having
+to modify the AST data.</p>
+<h2>Motivation</h2>
+<p>The visitor pattern is useful anywhere that you want to apply an algorithm to
+heterogeneous data. If data is homogeneous, you can use an iterator-like pattern.
+Using a visitor object (rather than a functional approach) allows the visitor to
+be stateful and thus communicate information between nodes.</p>
+<h2>Discussion</h2>
+<p>It is common for the <code>visit_*</code> methods to return void (as opposed to in the
+example). In that case it is possible to factor out the traversal code and share
+it between algorithms (and also to provide noop default methods). In Rust, the
+common way to do this is to provide <code>walk_*</code> functions for each datum. For
+example,</p>
+<pre><code class="language-rust">pub fn walk_expr(visitor: &amp;mut Visitor, e: &amp;Expr) {
+    match *e {
+        Expr::IntLit(_) =&gt; {},
+        Expr::Add(ref lhs, ref rhs) =&gt; {
+            visitor.visit_expr(lhs);
+            visitor.visit_expr(rhs);
+        }
+        Expr::Sub(ref lhs, ref rhs) =&gt; {
+            visitor.visit_expr(lhs);
+            visitor.visit_expr(rhs);
+        }
+    }
+}
+</code></pre>
+<p>In other languages (e.g., Java) it is common for data to have an <code>accept</code> method
+which performs the same duty.</p>
+<h2>See also</h2>
+<p>The visitor pattern is a common pattern in most OO languages.</p>
+<p><a href="https://en.wikipedia.org/wiki/Visitor_pattern">Wikipedia article</a></p>
+<p>The <a href="fold.md">fold</a> pattern is similar to visitor but produces a new version of
+the visited data structure.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a href="./patterns/entry.html" class="mobile-nav-chapters previous">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="./patterns/fold.html" class="mobile-nav-chapters next">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="./patterns/entry.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="./patterns/fold.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+    </body>
+</html>

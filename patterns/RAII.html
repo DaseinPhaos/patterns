@@ -1,0 +1,205 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+        <!-- MathJax -->
+        <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = localStorage.getItem('theme');
+            if (theme == null) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = localStorage.getItem('sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li><a href="./intro.html"><strong>1.</strong> Introduction</a></li><li><a href="./idioms/README.html"><strong>2.</strong> Idioms</a></li><li><ul class="section"><li><a href="./idioms/ctor.html"><strong>2.1.</strong> Constructor</a></li><li><a href="./idioms/concat-format.html"><strong>2.2.</strong> Concatenating Strings with <code>format!</code></a></li><li><a href="./idioms/priv-extend.html"><strong>2.3.</strong> Privacy For Extensibility</a></li><li><a href="./idioms/deref.html"><strong>2.4.</strong> Collections Are Smart Pointers</a></li><li><a href="./idioms/dtor-finally.html"><strong>2.5.</strong> Finalisation in Sestructors</a></li><li><a href="./idioms/option-iter.html"><strong>2.6.</strong> Iterating over an <code>Option</code></a></li><li><a href="./idioms/pass-var-to-closure.html"><strong>2.7.</strong> Pass Variables to Closure</a></li><li><a href="./idioms/mem-replace.html"><strong>2.8.</strong> <code>mem::replace(_)</code></a></li></ul></li><li><a href="./patterns/README.html"><strong>3.</strong> Design Patterns</a></li><li><ul class="section"><li><a href="./patterns/builder.html"><strong>3.1.</strong> Builder</a></li><li><a href="./patterns/RAII.html" class="active"><strong>3.2.</strong> RAII Guards</a></li><li><a href="./patterns/newtype.html"><strong>3.3.</strong> Newtype</a></li><li><a href="./patterns/entry.html"><strong>3.4.</strong> Entry API</a></li><li><a href="./patterns/visitor.html"><strong>3.5.</strong> Visitor</a></li><li><a href="./patterns/fold.html"><strong>3.6.</strong> Fold</a></li><li><a href="./patterns/small-crates.html"><strong>3.7.</strong> Prefer Small Crates</a></li><li><a href="./patterns/late-bounds.html"><strong>3.8.</strong> Late Bound Bounds</a></li><li><a href="./patterns/compose-structs.html"><strong>3.9.</strong> Compose Structs</a></li></ul></li><li><a href="./anti_patterns/README.html"><strong>4.</strong> Anti-patterns</a></li><li><ul class="section"><li><a href="./anti_patterns/deref.html"><strong>4.1.</strong> Deref Polymorphism</a></li><li><a href="./anti_patterns/deny-warnings.html"><strong>4.2.</strong> <code>#[deny(warnings)]</code></a></li></ul></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush"></i>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <h1>RAII with guards</h1>
+<h2>Description</h2>
+<p>RAII stands for &quot;Resource allocation is initialisation&quot; which is a terrible
+name. The essence of the pattern is that resource initialisation is done in the
+constructor of an object and finalisation in the destructor. This pattern is
+extended in Rust by using an RAII object as a guard of some resource and relying
+on the type system to ensure that access is always mediated by the guard object.</p>
+<h2>Example</h2>
+<p>Mutex guards are the classic example of this pattern from the std library (this
+is a simplified version of the real implementation):</p>
+<pre><code class="language-rust">struct Mutex&lt;T&gt; {
+    // We keep a reference to our data: T here.
+    ...
+}
+
+struct MutexGuard&lt;'a, T: 'a&gt; {
+    data: &amp;'a T,
+    ...
+}
+
+// Locking the mutex is explicit.
+impl&lt;T&gt; Mutex&lt;T&gt; {
+    fn lock(&amp;self) -&gt; MutexGuard&lt;T&gt; {
+        // Lock the underlying OS mutex.
+        ...
+
+        // MutexGuard keeps a reference to self
+        MutexGuard { data: self, ... }
+    }
+}
+
+// Destructor for unlocking the mutex.
+impl&lt;'a, T&gt; Drop for MutexGuard&lt;'a, T&gt; {
+    fn drop(&amp;mut self) {
+        // Unlock the underlying OS mutex.
+        ...
+    }
+}
+
+// Implementing Deref means we can treat MutexGuard like a pointer to T.
+impl&lt;'a, T&gt; Deref for MutexGuard&lt;'a, T&gt; {
+    type Target = T;
+
+    fn deref(&amp;self) -&gt; &amp;T {
+        self.data
+    }
+}
+
+fn main(x: Mutex&lt;Foo&gt;) {
+    let xx = x.lock();
+    xx.foo(); // foo is a method on Foo.
+    // The borrow checker ensures we can't store a reference to the underlying
+    // Foo which will outlive the guard xx.
+
+    // x is unlocked when we exit this function and xx's destructor is executed.
+}
+</code></pre>
+<h2>Motivation</h2>
+<p>Where a resource must be finalised after use, RAII can be used to do this
+finalisation. If it is an error to access that resource after finalisation, then
+this pattern can be used to prevent such errors.</p>
+<h2>Advantages</h2>
+<p>Prevents errors where a resource is not finalised and where a resource is used
+after finalisation.</p>
+<h2>Discussion</h2>
+<p>RAII is a useful pattern for ensuring resources are properly deallocated or
+finalised. We can make use of the borrow checker in Rust to statically prevent
+errors stemming from using resources after finalisation takes place.</p>
+<p>The core aim of the borrow checker is to ensure that references to data do not
+outlive that data. The RAII guard pattern works because the guard object
+contains a reference to the underlying resource and only exposes such
+references. Rust ensures that the guard cannot outlive the underlying resource
+and that references to the resource mediated by the guard cannot outlive the
+guard. To see how this works it is helpful to examine the signature of <code>deref</code>
+without lifetime elision:</p>
+<pre><code class="language-rust">fn deref&lt;'a&gt;(&amp;'a self) -&gt; &amp;'a T { ... }
+</code></pre>
+<p>The returned reference to the resource has the same lifetime as <code>self</code> (<code>'a</code>).
+The borrow checker therefore ensures that the lifetime of the reference to <code>T</code>
+is shorter than the lifetime of <code>self</code>.</p>
+<p>Note that implementing <code>Deref</code> is not a core part of this pattern, it only makes
+using the guard object more ergonomic. Implementing a <code>get</code> method on the guard
+works just as well.</p>
+<h2>See also</h2>
+<p><a href="../idioms/dtor-finally.md">Finalisation in destructors idiom</a></p>
+<p>RAII is a common pattern in C++: <a href="http://en.cppreference.com/w/cpp/language/raii">cppreference.com</a>,
+<a href="https://en.wikipedia.org/wiki/Resource_Acquisition_Is_Initialization">wikipedia</a>.</p>
+<p><a href="http://doc.rust-lang.org/stable/style/ownership/raii.html">Style guide enty</a>
+(currently just a placeholder).</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a href="./patterns/builder.html" class="mobile-nav-chapters previous">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="./patterns/newtype.html" class="mobile-nav-chapters next">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="./patterns/builder.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="./patterns/newtype.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+    </body>
+</html>

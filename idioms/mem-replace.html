@@ -1,0 +1,206 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+        <!-- MathJax -->
+        <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = localStorage.getItem('theme');
+            if (theme == null) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = localStorage.getItem('sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li><a href="./intro.html"><strong>1.</strong> Introduction</a></li><li><a href="./idioms/README.html"><strong>2.</strong> Idioms</a></li><li><ul class="section"><li><a href="./idioms/ctor.html"><strong>2.1.</strong> Constructor</a></li><li><a href="./idioms/concat-format.html"><strong>2.2.</strong> Concatenating Strings with <code>format!</code></a></li><li><a href="./idioms/priv-extend.html"><strong>2.3.</strong> Privacy For Extensibility</a></li><li><a href="./idioms/deref.html"><strong>2.4.</strong> Collections Are Smart Pointers</a></li><li><a href="./idioms/dtor-finally.html"><strong>2.5.</strong> Finalisation in Sestructors</a></li><li><a href="./idioms/option-iter.html"><strong>2.6.</strong> Iterating over an <code>Option</code></a></li><li><a href="./idioms/pass-var-to-closure.html"><strong>2.7.</strong> Pass Variables to Closure</a></li><li><a href="./idioms/mem-replace.html" class="active"><strong>2.8.</strong> <code>mem::replace(_)</code></a></li></ul></li><li><a href="./patterns/README.html"><strong>3.</strong> Design Patterns</a></li><li><ul class="section"><li><a href="./patterns/builder.html"><strong>3.1.</strong> Builder</a></li><li><a href="./patterns/RAII.html"><strong>3.2.</strong> RAII Guards</a></li><li><a href="./patterns/newtype.html"><strong>3.3.</strong> Newtype</a></li><li><a href="./patterns/entry.html"><strong>3.4.</strong> Entry API</a></li><li><a href="./patterns/visitor.html"><strong>3.5.</strong> Visitor</a></li><li><a href="./patterns/fold.html"><strong>3.6.</strong> Fold</a></li><li><a href="./patterns/small-crates.html"><strong>3.7.</strong> Prefer Small Crates</a></li><li><a href="./patterns/late-bounds.html"><strong>3.8.</strong> Late Bound Bounds</a></li><li><a href="./patterns/compose-structs.html"><strong>3.9.</strong> Compose Structs</a></li></ul></li><li><a href="./anti_patterns/README.html"><strong>4.</strong> Anti-patterns</a></li><li><ul class="section"><li><a href="./anti_patterns/deref.html"><strong>4.1.</strong> Deref Polymorphism</a></li><li><a href="./anti_patterns/deny-warnings.html"><strong>4.2.</strong> <code>#[deny(warnings)]</code></a></li></ul></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush"></i>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <h1><code>mem::replace</code> to keep owned values in changed enums</h1>
+<h2>Description</h2>
+<p>Say we have a <code>&amp;mut MyEnum</code> which has (at least) two variants,
+<code>A { name: String, x: u8 }</code> and <code>B { name: String }</code>. Now we want to change
+<code>MyEnum::A</code> to a <code>B</code> if <code>x</code> is zero, while keeping <code>MyEnum::B</code> intact.</p>
+<p>We can do this without cloning the <code>name</code>.</p>
+<h2>Example</h2>
+<pre><code class="language-rust">use std::mem;
+
+enum MyEnum {
+    A { name: String, x: u8 },
+    B { name: String }
+}
+
+fn a_to_b(e: &amp;mut MyEnum) {
+
+    // we mutably borrow `e` here. This precludes us from changing it directly
+    // as in `*e = ...`, because the borrow checker won't allow it. Therefore
+    // the assignment to `e` must be outside the `if let` clause. 
+    *e = if let MyEnum::A { ref mut name, x: 0 } = *e {
+    
+        // this takes out our `name` and put in an empty String instead
+        // (note that empty strings don't allocate).
+        // Then, construct the new enum variant (which will 
+        // be assigned to `*e`, because it is the result of the `if let` expression).
+        MyEnum::B { name: mem::replace(name, String::new()) }
+        
+    // In all other cases, we return immediately, thus skipping the assignment
+    } else { return }
+}
+</code></pre>
+<p>This also works with more variants:</p>
+<pre><code class="language-Rust">use std::mem;
+
+enum MultiVariateEnum {
+    A { name: String },
+    B { name: String },
+    C,
+    D
+}
+
+fn swizzle(e: &amp;mut MultiVariateEnum) {
+    use self::MultiVariateEnum::*;
+    *e = match *e {
+        // Ownership rules do not allow taking `name` by value, but we cannot
+        // take the value out of a mutable reference, unless we replace it:
+        A { ref mut name } =&gt; B { name: mem::replace(name, String::new()) },
+        B { ref mut name } =&gt; A { name: mem::replace(name, String::new()) },
+        C =&gt; D,
+        D =&gt; C
+    }
+}
+</code></pre>
+<h2>Motivation</h2>
+<p>When working with enums, we may want to change an enum value in place, perhaps
+to another variant. This is usually done in two phases to keep the borrow
+checker happy. In the first phase, we observe the existing value and look at
+its parts to decide what to do next. In the second phase we may conditionally
+change the value (as in the example above).</p>
+<p>The borrow checker won't allow us to take out <code>name</code> of the enum (because
+<em>something</em> must be there. We could of course <code>.clone()</code> name and put the clone
+into our <code>MyEnum::B</code>, but that would be an instance of the [Clone to satisfy
+the borrow checker] antipattern. Anyway, we can avoid the extra allocation by
+changing <code>e</code> with only a mutable borrow.</p>
+<p><code>mem::replace</code> lets us swap out the value, replacing it with something else. In
+this case, we put in an empty <code>String</code>, which does not need to allocate. As a
+result, we get the original <code>name</code> <em>as an owned value</em>. We can then wrap this in
+another enum.</p>
+<p>Note, however, that if we are using an <code>Option</code> and want to replace its
+value with a <code>None</code>, <code>Option</code>’s <code>take()</code> method provides a shorter and
+more idiomatic alternative.</p>
+<h2>Advantages</h2>
+<p>Look ma, no allocation! Also you may feel like Indiana Jones while doing it.</p>
+<h2>Disadvantages</h2>
+<p>This gets a bit wordy. Getting it wrong repeatedly will make you hate the
+borrow checker. The compiler may fail to optimize away the double store,
+resulting in reduced performance as opposed to what you'd do in unsafe
+languages.</p>
+<h2>Discussion</h2>
+<p>This pattern is only of interest in Rust. In GC'd languages, you'd take the
+reference to the value by default (and the GC would keep track of refs), and in
+other low-level languages like C you'd simply alias the pointer and fix things
+later.</p>
+<p>However, in Rust, we have to do a little more work to do this. An owned value
+may only have one owner, so to take it out, we need to put something back in –
+like Indiana Jones, replacing the artifact with a bag of sand.</p>
+<h2>See also</h2>
+<p>This gets rid of the [Clone to satisfy the borrow checker] antipattern in a
+specific case.</p>
+<p>[Clone to satisfy the borrow checker](TODO: Hinges on PR #23)</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a href="./idioms/pass-var-to-closure.html" class="mobile-nav-chapters previous">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="./patterns/README.html" class="mobile-nav-chapters next">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="./idioms/pass-var-to-closure.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="./patterns/README.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+    </body>
+</html>

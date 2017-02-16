@@ -1,0 +1,190 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+        <!-- MathJax -->
+        <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = localStorage.getItem('theme');
+            if (theme == null) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = localStorage.getItem('sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li><a href="./intro.html"><strong>1.</strong> Introduction</a></li><li><a href="./idioms/README.html"><strong>2.</strong> Idioms</a></li><li><ul class="section"><li><a href="./idioms/ctor.html"><strong>2.1.</strong> Constructor</a></li><li><a href="./idioms/concat-format.html"><strong>2.2.</strong> Concatenating Strings with <code>format!</code></a></li><li><a href="./idioms/priv-extend.html"><strong>2.3.</strong> Privacy For Extensibility</a></li><li><a href="./idioms/deref.html"><strong>2.4.</strong> Collections Are Smart Pointers</a></li><li><a href="./idioms/dtor-finally.html"><strong>2.5.</strong> Finalisation in Sestructors</a></li><li><a href="./idioms/option-iter.html"><strong>2.6.</strong> Iterating over an <code>Option</code></a></li><li><a href="./idioms/pass-var-to-closure.html"><strong>2.7.</strong> Pass Variables to Closure</a></li><li><a href="./idioms/mem-replace.html"><strong>2.8.</strong> <code>mem::replace(_)</code></a></li></ul></li><li><a href="./patterns/README.html"><strong>3.</strong> Design Patterns</a></li><li><ul class="section"><li><a href="./patterns/builder.html"><strong>3.1.</strong> Builder</a></li><li><a href="./patterns/RAII.html"><strong>3.2.</strong> RAII Guards</a></li><li><a href="./patterns/newtype.html"><strong>3.3.</strong> Newtype</a></li><li><a href="./patterns/entry.html"><strong>3.4.</strong> Entry API</a></li><li><a href="./patterns/visitor.html"><strong>3.5.</strong> Visitor</a></li><li><a href="./patterns/fold.html"><strong>3.6.</strong> Fold</a></li><li><a href="./patterns/small-crates.html"><strong>3.7.</strong> Prefer Small Crates</a></li><li><a href="./patterns/late-bounds.html"><strong>3.8.</strong> Late Bound Bounds</a></li><li><a href="./patterns/compose-structs.html" class="active"><strong>3.9.</strong> Compose Structs</a></li></ul></li><li><a href="./anti_patterns/README.html"><strong>4.</strong> Anti-patterns</a></li><li><ul class="section"><li><a href="./anti_patterns/deref.html"><strong>4.1.</strong> Deref Polymorphism</a></li><li><a href="./anti_patterns/deny-warnings.html"><strong>4.2.</strong> <code>#[deny(warnings)]</code></a></li></ul></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush"></i>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <h1>Compose structs together for better borrowing</h1>
+<p>TODO - this is not a very snappy name</p>
+<h2>Description</h2>
+<p>Sometimes a large struct will cause issues with the borrow checker - although
+fields can be borrowed independently, sometimes the whole struct ends up being
+used at once, preventing other uses. A solution might be to decompose the struct
+into several smaller structs. Then compose these together into the original
+struct. Then each struct can be borrowed separately and have more flexible
+behaviour.</p>
+<p>This will often lead to a better design in other ways: applying this design
+pattern often reveals smaller units of functionality.</p>
+<h2>Example</h2>
+<p>Here is a contrived example of where the borrow checker foils us in our plan to
+use a struct:</p>
+<pre><code class="language-rust">struct A {
+    f1: u32,
+    f2: u32,
+    f3: u32,
+}
+
+fn foo(a: &amp;mut A) -&gt; &amp;u32 { &amp;a.f2 }
+fn bar(a: &amp;mut A) -&gt; u32 { a.f1 + a.f3 }
+
+fn main(a: &amp;mut A) {
+    // x causes a to be borrowed for the rest of the function.
+    let x = foo(a);
+    // Borrow check error
+    let y = bar(a); //~ ERROR: cannot borrow `*a` as mutable more than once at a time
+}
+</code></pre>
+<p>We can apply this design pattern and refactor <code>A</code> into two smaller structs, thus
+solving the borrow checking issue:</p>
+<pre><code class="language-rust">// A is now composed of two structs - B and C.
+struct A {
+    b: B,
+    c: C,
+}
+struct B {
+    f2: u32,
+}
+struct C {
+    f1: u32,
+    f3: u32,
+}
+
+// These functions take a B or C, rather than A.
+fn foo(b: &amp;mut B) -&gt; &amp;u32 { &amp;b.f2 }
+fn bar(c: &amp;mut C) -&gt; u32 { c.f1 + c.f3 }
+
+fn main(a: &amp;mut A) {
+    let x = foo(&amp;mut a.b);
+    // Now it's OK!
+    let y = bar(&amp;mut a.c);
+}
+</code></pre>
+<h2>Motivation</h2>
+<p>Why and where you should use the pattern</p>
+<h2>Advantages</h2>
+<p>Lets you work around limitations in the borrow checker.</p>
+<p>Often produces a better design.</p>
+<h2>Disadvantages</h2>
+<p>Leads to more verbose code.</p>
+<p>Sometimes, the smaller structs are not good abstractions, and so we end up with
+a worse design. That is probably a 'code smell', indicating that the program
+should be refactored in some way.</p>
+<h2>Discussion</h2>
+<p>This pattern is not required in languages that don't have a borrow checker, so
+in that sense is unique to Rust. However, making smaller units of functionality
+often leads to cleaner code: a widely acknowledged principle of software
+engineering, independent of the language.</p>
+<p>This pattern relies on Rust's borrow checker to be able to borrow fields
+independently of each other. In the example, the borrow checker knows that <code>a.b</code>
+and <code>a.c</code> are distinct and can be borrowed independently, it does not try to
+borrow all of <code>a</code>, which would make this pattern useless.</p>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a href="./patterns/late-bounds.html" class="mobile-nav-chapters previous">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+                    <a href="./anti_patterns/README.html" class="mobile-nav-chapters next">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+                
+
+            </div>
+
+            
+                <a href="./patterns/late-bounds.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+                <a href="./anti_patterns/README.html" class="nav-chapters next" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-right"></i>
+                </a>
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+    </body>
+</html>

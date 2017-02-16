@@ -1,6 +1,0 @@
-[package]
-name = "building_script"
-version = "0.1.0"
-authors = ["Luxko <liarluxlux@gmail.com>"]
-
-[dependencies]

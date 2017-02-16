@@ -1,0 +1,189 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title></title>
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <base href="../">
+
+        <link rel="stylesheet" href="book.css">
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,700italic,800italic,400,300,600,700,800' rel='stylesheet' type='text/css'>
+
+        <link rel="shortcut icon" href="favicon.png">
+
+        <!-- Font Awesome -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css">
+
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+
+        <!-- MathJax -->
+        <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+        <!-- Fetch JQuery from CDN but have a local fallback -->
+        <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+        <script>
+            if (typeof jQuery == 'undefined') {
+                document.write(unescape("%3Cscript src='jquery.js'%3E%3C/script%3E"));
+            }
+        </script>
+    </head>
+    <body class="light">
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme = localStorage.getItem('theme');
+            if (theme == null) { theme = 'light'; }
+            $('body').removeClass().addClass(theme);
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var sidebar = localStorage.getItem('sidebar');
+            if (sidebar === "hidden") { $("html").addClass("sidebar-hidden") }
+            else if (sidebar === "visible") { $("html").addClass("sidebar-visible") }
+        </script>
+
+        <div id="sidebar" class="sidebar">
+            <ul class="chapter"><li><a href="./intro.html"><strong>1.</strong> Introduction</a></li><li><a href="./idioms/README.html"><strong>2.</strong> Idioms</a></li><li><ul class="section"><li><a href="./idioms/ctor.html"><strong>2.1.</strong> Constructor</a></li><li><a href="./idioms/concat-format.html"><strong>2.2.</strong> Concatenating Strings with <code>format!</code></a></li><li><a href="./idioms/priv-extend.html"><strong>2.3.</strong> Privacy For Extensibility</a></li><li><a href="./idioms/deref.html"><strong>2.4.</strong> Collections Are Smart Pointers</a></li><li><a href="./idioms/dtor-finally.html"><strong>2.5.</strong> Finalisation in Sestructors</a></li><li><a href="./idioms/option-iter.html"><strong>2.6.</strong> Iterating over an <code>Option</code></a></li><li><a href="./idioms/pass-var-to-closure.html"><strong>2.7.</strong> Pass Variables to Closure</a></li><li><a href="./idioms/mem-replace.html"><strong>2.8.</strong> <code>mem::replace(_)</code></a></li></ul></li><li><a href="./patterns/README.html"><strong>3.</strong> Design Patterns</a></li><li><ul class="section"><li><a href="./patterns/builder.html"><strong>3.1.</strong> Builder</a></li><li><a href="./patterns/RAII.html"><strong>3.2.</strong> RAII Guards</a></li><li><a href="./patterns/newtype.html"><strong>3.3.</strong> Newtype</a></li><li><a href="./patterns/entry.html"><strong>3.4.</strong> Entry API</a></li><li><a href="./patterns/visitor.html"><strong>3.5.</strong> Visitor</a></li><li><a href="./patterns/fold.html"><strong>3.6.</strong> Fold</a></li><li><a href="./patterns/small-crates.html"><strong>3.7.</strong> Prefer Small Crates</a></li><li><a href="./patterns/late-bounds.html"><strong>3.8.</strong> Late Bound Bounds</a></li><li><a href="./patterns/compose-structs.html"><strong>3.9.</strong> Compose Structs</a></li></ul></li><li><a href="./anti_patterns/README.html"><strong>4.</strong> Anti-patterns</a></li><li><ul class="section"><li><a href="./anti_patterns/deref.html"><strong>4.1.</strong> Deref Polymorphism</a></li><li><a href="./anti_patterns/deny-warnings.html" class="active"><strong>4.2.</strong> <code>#[deny(warnings)]</code></a></li></ul></li></ul>
+        </div>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar" class="menu-bar">
+                    <div class="left-buttons">
+                        <i id="sidebar-toggle" class="fa fa-bars"></i>
+                        <i id="theme-toggle" class="fa fa-paint-brush"></i>
+                    </div>
+
+                    <h1 class="menu-title"></h1>
+
+                    <div class="right-buttons">
+                        <i id="print-button" class="fa fa-print" title="Print this book"></i>
+                    </div>
+                </div>
+
+                <div id="content" class="content">
+                    <h1><code>#![deny(warnings)]</code></h1>
+<h2>Description</h2>
+<p>A well-intentioned crate author wants to ensure their code builds without
+warnings. So they annotate their crate root with the following:</p>
+<h2>Example</h2>
+<pre><code class="language-rust">#![deny(warnings)]
+
+// All is well.
+</code></pre>
+<h2>Advantages</h2>
+<p>It is short and will stop the build if anything is amiss.</p>
+<h2>Drawbacks</h2>
+<p>By disallowing the compiler to build with warnings, a crate author opts out of
+Rust's famed stability. Sometimes new features or old misfeatures need a change
+in how things are done, thus lints are written that <code>warn</code> for a certain grace
+period before being turned to <code>deny</code>.</p>
+<p>For example, it was discovered that a type could have two <code>impl</code>s with the same
+method. This was deemed a bad idea, but in order to make the transition smooth,
+the <code>overlapping-inherent-impls</code> lint was introduced to give a warning to those
+stumbling on this fact, before it becomes a hard error in a future release.</p>
+<p>Also sometimes APIs get deprecated, so their use will emit a warning where
+before there was none.</p>
+<p>All this conspires to potentially break the build whenever something changes.</p>
+<p>Furthermore, crates that supply additional lints (e.g. <a href="https://github.com/Manishearth/rust-clippy">rust-clippy</a>) can no
+longer be used unless the annotation is removed.</p>
+<h2>Alternatives</h2>
+<p>There are two ways of tackling this problem: First, we can decouple the build
+setting from the code, and second, we can name the lints we want to deny
+explicitly.</p>
+<p>The following command line will build with all warnings set to <code>deny</code>:</p>
+<p><code>RUSTFLAGS=&quot;-D warnings&quot; cargo build</code></p>
+<p>This can be done by any individual developer (or be set in a CI tool like
+Travis, but remember that this may break the build when something changes)
+without requiring a change to the code.</p>
+<p>Alternatively, we can specify the lints that we want to <code>deny</code> in the code.
+Here is a list of warning lints that is (hopefully) safe to deny:</p>
+<pre><code class="language-rust">#[deny(bad-style,
+       const-err,
+       dead-code,
+       extra-requirement-in-impl,
+       improper-ctypes,
+       legacy-directory-ownership,
+       non-shorthand-field-patterns,
+       no-mangle-generic-items,
+       overflowing-literals,
+       path-statements ,
+       patterns-in-fns-without-body,
+       plugin-as-library,
+       private-in-public,
+       private-no-mangle-fns,
+       private-no-mangle-statics,
+       raw-pointer-derive,
+       safe-extern-statics,
+       unconditional-recursion,
+       unions-with-drop-fields,
+       unused,
+       unused-allocation,
+       unused-comparisons,
+       unused-parens,
+       while-true)]
+</code></pre>
+<p>In addition, the following <code>allow</code>ed lints may be a good idea to <code>deny</code>:</p>
+<pre><code class="language-rust">#[deny(missing-debug-implementations,
+       missing-docs,
+       trivial-casts,
+       trivial-numeric-casts,
+       unused-extern-crates,
+       unused-import-braces,
+       unused-qualifications,
+       unused-results)]
+</code></pre>
+<p>Some may also want to add <code>missing-copy-implementations</code> to their list.</p>
+<p>Note that we explicitly did not add the <code>deprecated</code> lint, as it is fairly
+certain that there will be more deprecated APIs in the future.</p>
+<h2>See also</h2>
+<ul>
+<li><a href="https://doc.rust-lang.org/reference.html#miscellaneous-attributes">deprecate attribute</a> documentation</li>
+<li>Type <code>rustc -W help</code> for a list of lints on your system. Also type
+<code>rustc --help</code> for a general list of options</li>
+<li><a href="https://github.com/Manishearth/rust-clippy">rust-clippy</a> is a collection of lints for better Rust code</li>
+</ul>
+
+                </div>
+
+                <!-- Mobile navigation buttons -->
+                
+                    <a href="./anti_patterns/deref.html" class="mobile-nav-chapters previous">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                
+
+                
+
+            </div>
+
+            
+                <a href="./anti_patterns/deref.html" class="nav-chapters previous" title="You can navigate through the chapters using the arrow keys">
+                    <i class="fa fa-angle-left"></i>
+                </a>
+            
+
+            
+
+        </div>
+
+
+        <!-- Local fallback for Font Awesome -->
+        <script>
+            if ($(".fa").css("font-family") !== "FontAwesome") {
+                $('<link rel="stylesheet" type="text/css" href="_FontAwesome/css/font-awesome.css">').prependTo('head');
+            }
+        </script>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        
+
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+    </body>
+</html>
